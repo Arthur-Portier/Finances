@@ -5,8 +5,8 @@
  * Priorité : réglage saisi dans l'app > variables de build > valeurs ci-dessous.
  */
 export const DEFAULT_SUPABASE = {
-  url: '',
-  anonKey: '',
+  url: 'https://yswcfqomwddqkaqdaebi.supabase.co',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzd2NmcW9td2RkcWthcWRhZWJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1Mjk0OTMsImV4cCI6MjEwOTEwNTQ5M30.x1KjTp6dbNfFUruH1aDbg46UtqhACENmDiBy-eA1JD8',
 }
 
 export interface SyncConfig {

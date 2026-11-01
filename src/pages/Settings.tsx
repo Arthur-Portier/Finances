@@ -3,7 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Download, Upload, FileSpreadsheet, Sparkles, Trash2, Moon, Sun, Monitor, Smartphone } from 'lucide-react'
 import { db } from '../db/db'
 import { Card, PageHeader, Segmented } from '../components/ui'
-import { useTheme, type Theme } from '../lib/hooks'
+import { useSetting, useTheme, type Theme } from '../lib/hooks'
+import { STORES } from '../lib/stores'
 import { exportCSV, exportJSON, importJSON, wipeAll } from '../lib/backup'
 import { seedDemo } from '../db/seed'
 import { ensureDefaults } from '../db/defaults'
@@ -11,6 +12,7 @@ import { SyncCard } from '../components/SyncCard'
 
 export default function SettingsPage() {
   const [theme, setTheme] = useTheme()
+  const [storeId, setStoreId] = useSetting<string>('shopping.store', 'lidl')
   const fileRef = useRef<HTMLInputElement>(null)
   const [msg, setMsg] = useState('')
   const counts = useLiveQuery(async () => ({ tx: await db.transactions.count(), cats: await db.categories.count(), items: await db.wardrobe.count() }), [])
@@ -43,6 +45,14 @@ export default function SettingsPage() {
             {theme === 'dark' ? <Moon size={14} /> : theme === 'light' ? <Sun size={14} /> : <Monitor size={14} />}
             {theme === 'system' ? 'Suit le réglage de ton appareil.' : theme === 'dark' ? 'Thème sombre forcé.' : 'Thème clair forcé.'}
           </div>
+        </Card>
+
+        <Card title="Courses">
+          <label className="block text-xs font-medium text-ink-3 mb-1" htmlFor="store">Enseigne pour vérifier les prix</label>
+          <select id="store" className="field" value={storeId} onChange={(e) => setStoreId(e.target.value)}>
+            {STORES.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <p className="mt-2 text-xs text-ink-3">Depuis la liste de courses, la flèche à côté d'un article ouvre sa recherche sur le site de l'enseigne (ou son application si elle est installée). L'app retient aussi le dernier prix saisi pour chaque article.</p>
         </Card>
 
         <Card title="Installer l'application">

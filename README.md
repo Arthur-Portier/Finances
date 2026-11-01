@@ -13,9 +13,9 @@ C'est une **Progressive Web App** (PWA) : une seule base de code, installable su
 - **Tableau de bord** : dépensé / revenus / solde du mois, projection de fin de mois, revenus vs dépenses sur 6 mois, rythme de dépenses comparé au mois dernier, répartition par espace, budgets à surveiller, dernières opérations.
 - **Transactions** : ajout en 3 secondes (bouton +), recherche, filtres par type et par espace, navigation mois par mois, modification et suppression.
 - **Espaces** : un espace par poste de dépense (Courses, Vêtements, Tennis, Logement…), chacun avec ses statistiques : total du mois, moyenne, total annuel, rythme annuel, évolution mensuelle, répartition par sous-catégorie (ex. Tennis → Licence, Cours, Cordage, Tournois…), budget et historique. Couleur, icône, budget et sous-catégories personnalisables ; création d'espaces illimitée.
-- **Courses** : plusieurs listes, cases à cocher, quantités, prix estimés, total prévu ; « Enregistrer le ticket » transforme les articles cochés en une dépense Courses.
+- **Courses** : plusieurs listes, cases à cocher, quantités, prix modifiables en ligne, total prévu ; l'app retient le dernier prix saisi pour chaque article et le propose la fois suivante ; une flèche ouvre la recherche de l'article chez ton enseigne (Lidl par défaut, réglable) pour vérifier le prix du jour ; « Enregistrer le ticket » transforme les articles cochés en une dépense Courses.
 - **Garde-robe** : chaque pièce avec prix, marque, type et nombre de ports ; **coût par port** calculé automatiquement, valeur par type, tri par prix ou par €/port, création automatique de la dépense Vêtements.
-- **Budgets** : budget mensuel par espace, progression globale avec repère « aujourd'hui », reste à dépenser par jour, alertes de dépassement.
+- **Budgets** : budget global du mois modifiable (pour ce mois seulement ou comme nouvelle valeur par défaut), budgets par espace, progression globale avec repère « aujourd'hui », reste à dépenser par jour, alertes de dépassement.
 - **Abonnements et récurrents** : loyer, Netflix, licence, salaire… ajoutés automatiquement chaque mois à la date prévue ; charges fixes mensuelles / annuelles et reste à vivre.
 - **Réglages** : thème clair / sombre / automatique, export JSON (sauvegarde complète) et CSV, import, données d'exemple, remise à zéro.
 

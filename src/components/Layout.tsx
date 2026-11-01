@@ -37,7 +37,7 @@ export function Layout() {
 
   return (
     <Ctx.Provider value={ctx}>
-      <div className="flex h-dvh flex-col overflow-hidden lg:flex-row">
+      <div className="flex h-full flex-col overflow-hidden lg:flex-row">
         {/* Desktop sidebar */}
         <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-line bg-surface/60 px-4 py-6 h-full">
           <Brand />
@@ -70,7 +70,7 @@ export function Layout() {
         </div>
 
         {/* Mobile bottom tabs */}
-        <nav className="lg:hidden shrink-0 z-30 safe-bottom bg-surface/90 backdrop-blur border-t border-line">
+        <nav className="lg:hidden shrink-0 z-30 safe-bottom bg-surface/90 backdrop-blur border-t border-line relative after:absolute after:inset-x-0 after:top-full after:h-24 after:bg-surface">
           <div className="relative grid grid-cols-5 h-16 items-center">
             {MOBILE.slice(0, 2).map((n) => (
               <TabItem key={n.to} {...n} />

@@ -101,7 +101,10 @@
 }
 
 @layer base {
-html, body, #root { height: 100%; }
+html { height: 100%; overflow: hidden; }
+/* Le corps est calé sur la fenêtre réelle : sur iPhone, c'est la seule mesure qui suit
+   fidèlement la barre d'adresse de Safari (100dvh ne s'actualise pas toujours). */
+#root { height: 100%; }
 body {
   margin: 0;
   background: var(--page);
@@ -113,6 +116,8 @@ body {
   overflow: hidden;
   position: fixed;
   inset: 0;
+  height: auto;
+  width: auto;
 }
 input, select, textarea, button { font: inherit; color: inherit; }
 input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }

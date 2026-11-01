@@ -1,5 +1,9 @@
 # Finances
 
+> **📱 Ouvrir l'application : [arthur-portier.github.io/Finances](https://arthur-portier.github.io/Finances/)**
+>
+> Puis « Sur l'écran d'accueil » (Safari) ou « Installer l'application » (Chrome) pour l'avoir comme une vraie app.
+
 Application desktop et mobile pour gérer mes finances au quotidien : dépenses, revenus, budgets, listes de courses, garde-robe, tennis et tous les autres postes de dépense.
 
 C'est une **Progressive Web App** (PWA) : une seule base de code, installable sur iPhone, Android, Mac, Windows et Linux depuis le navigateur. Elle fonctionne hors ligne et les données restent sur l'appareil (IndexedDB).

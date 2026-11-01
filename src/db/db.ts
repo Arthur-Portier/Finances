@@ -2,7 +2,12 @@ import Dexie, { type EntityTable } from 'dexie'
 
 export type TxType = 'expense' | 'income'
 
-export interface Category {
+/** Champ commun : horodatage de dernière modification locale (ms), utilisé par la synchro. */
+export interface Synced {
+  updatedAt?: number
+}
+
+export interface Category extends Synced {
   id: string
   name: string
   icon: string            // lucide icon name (see lib/icons)
@@ -14,7 +19,7 @@ export interface Category {
   order: number
 }
 
-export interface Transaction {
+export interface Transaction extends Synced {
   id: string
   date: string            // yyyy-MM-dd
   amount: number          // always positive
@@ -26,14 +31,14 @@ export interface Transaction {
   createdAt: number
 }
 
-export interface ShoppingList {
+export interface ShoppingList extends Synced {
   id: string
   name: string
   createdAt: number
   archived?: boolean
 }
 
-export interface ShoppingItem {
+export interface ShoppingItem extends Synced {
   id: string
   listId: string
   name: string
@@ -43,7 +48,7 @@ export interface ShoppingItem {
   createdAt: number
 }
 
-export interface WardrobeItem {
+export interface WardrobeItem extends Synced {
   id: string
   name: string
   brand?: string
@@ -55,7 +60,7 @@ export interface WardrobeItem {
   archived?: boolean
 }
 
-export interface Recurring {
+export interface Recurring extends Synced {
   id: string
   name: string
   amount: number
@@ -72,6 +77,23 @@ export interface Setting {
   value: unknown
 }
 
+export interface OutboxEntry {
+  seq?: number
+  table: SyncedTableName
+  id: string
+  op: 'put' | 'del'
+  ts: number
+}
+
+export type SyncedTableName = 'categories' | 'transactions' | 'shoppingLists' | 'shoppingItems' | 'wardrobe' | 'recurring'
+export type SyncedTable<T extends SyncedTableName> = T extends 'categories' ? Category
+  : T extends 'transactions' ? Transaction
+  : T extends 'shoppingLists' ? ShoppingList
+  : T extends 'shoppingItems' ? ShoppingItem
+  : T extends 'wardrobe' ? WardrobeItem
+  : Recurring
+export const SYNCED_TABLES: SyncedTableName[] = ['categories', 'transactions', 'shoppingLists', 'shoppingItems', 'wardrobe', 'recurring']
+
 export const db = new Dexie('finances') as Dexie & {
   categories: EntityTable<Category, 'id'>
   transactions: EntityTable<Transaction, 'id'>
@@ -80,6 +102,7 @@ export const db = new Dexie('finances') as Dexie & {
   wardrobe: EntityTable<WardrobeItem, 'id'>
   recurring: EntityTable<Recurring, 'id'>
   settings: EntityTable<Setting, 'key'>
+  outbox: EntityTable<OutboxEntry, 'seq'>
 }
 
 db.version(1).stores({
@@ -90,6 +113,17 @@ db.version(1).stores({
   wardrobe: 'id, date, type',
   recurring: 'id, active',
   settings: 'key',
+})
+
+db.version(2).stores({
+  categories: 'id, order, kind',
+  transactions: 'id, date, categoryId, type, [categoryId+date]',
+  shoppingLists: 'id, createdAt',
+  shoppingItems: 'id, listId, checked',
+  wardrobe: 'id, date, type',
+  recurring: 'id, active',
+  settings: 'key',
+  outbox: '++seq, [table+id]',
 })
 
 export const uid = () =>

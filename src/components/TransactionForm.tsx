@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import { db, uid, type Transaction, type TxType } from '../db/db'
+import { uid, type Transaction, type TxType } from '../db/db'
+import { remove as removeRow, save as saveRow } from '../db/repo'
 import { useCategories } from '../lib/hooks'
 import { todayISO } from '../lib/format'
 import { CategoryBadge, Segmented } from './ui'
@@ -40,7 +41,7 @@ export function TransactionForm({ initial, onDone, defaultCategoryId }: { initia
       recurringId: initial?.recurringId,
       createdAt: initial?.createdAt ?? Date.now(),
     }
-    await db.transactions.put(tx)
+    await saveRow('transactions', tx)
     setSaving(false)
     onDone()
   }
@@ -48,7 +49,7 @@ export function TransactionForm({ initial, onDone, defaultCategoryId }: { initia
   const remove = async () => {
     if (!initial) return
     if (!confirm('Supprimer cette transaction ?')) return
-    await db.transactions.delete(initial.id)
+    await removeRow('transactions', initial.id)
     onDone()
   }
 

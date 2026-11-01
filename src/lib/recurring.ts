@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { db, uid } from '../db/db'
+import { patch, save } from '../db/repo'
 
 /** Creates this month's transaction for every active recurring entry whose day has passed. */
 export async function applyRecurring() {
@@ -10,7 +11,7 @@ export async function applyRecurring() {
     if (r.lastApplied === ym) continue
     if (today.getDate() < r.day) continue
     const day = Math.min(r.day, 28)
-    await db.transactions.add({
+    await save('transactions', {
       id: uid(),
       date: `${ym}-${String(day).padStart(2, '0')}`,
       amount: r.amount,
@@ -21,6 +22,6 @@ export async function applyRecurring() {
       recurringId: r.id,
       createdAt: Date.now(),
     })
-    await db.recurring.update(r.id, { lastApplied: ym })
+    await patch('recurring', r.id, { lastApplied: ym })
   }
 }

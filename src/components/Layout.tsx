@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { LayoutDashboard, ArrowLeftRight, LayoutGrid, ShoppingBasket, Shirt, PiggyBank, Repeat, Settings, Plus, Menu, X } from 'lucide-react'
 import { Sheet } from './ui'
@@ -25,6 +25,10 @@ export function Layout() {
   const [state, setState] = useState<{ open: boolean; tx?: Transaction; categoryId?: string }>({ open: false })
   const [menu, setMenu] = useState(false)
   const loc = useLocation()
+  const scroller = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    scroller.current?.scrollTo({ top: 0 })
+  }, [loc.pathname])
 
   const openAdd = useCallback((opts?: { categoryId?: string }) => setState({ open: true, categoryId: opts?.categoryId }), [])
   const openEdit = useCallback((tx: Transaction) => setState({ open: true, tx }), [])
@@ -33,9 +37,9 @@ export function Layout() {
 
   return (
     <Ctx.Provider value={ctx}>
-      <div className="min-h-dvh lg:flex">
+      <div className="flex h-dvh flex-col overflow-hidden lg:flex-row">
         {/* Desktop sidebar */}
-        <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-line bg-surface/60 px-4 py-6 sticky top-0 h-dvh">
+        <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-line bg-surface/60 px-4 py-6 h-full">
           <Brand />
           <nav className="mt-8 flex-1 space-y-1">
             {NAV.map((n) => (
@@ -48,7 +52,7 @@ export function Layout() {
         </aside>
 
         {/* Mobile top bar */}
-        <header className="lg:hidden sticky top-0 z-30 safe-top bg-page/85 backdrop-blur border-b border-line">
+        <header className="lg:hidden shrink-0 z-30 safe-top bg-page/85 backdrop-blur border-b border-line">
           <div className="flex items-center justify-between px-4 h-14">
             <Brand compact />
             <button className="btn btn-ghost !p-2 rounded-full" onClick={() => setMenu(true)} aria-label="Menu">
@@ -57,14 +61,16 @@ export function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 min-w-0 px-4 pt-4 pb-28 lg:px-10 lg:py-8 max-w-6xl w-full mx-auto">
-          <div key={loc.pathname} className="rise">
-            <Outlet />
-          </div>
-        </main>
+        <div ref={scroller} className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+          <main className="px-4 pt-4 pb-8 lg:px-10 lg:py-8 max-w-6xl w-full mx-auto">
+            <div key={loc.pathname} className="rise">
+              <Outlet />
+            </div>
+          </main>
+        </div>
 
         {/* Mobile bottom tabs */}
-        <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 safe-bottom bg-surface/90 backdrop-blur border-t border-line">
+        <nav className="lg:hidden shrink-0 z-30 safe-bottom bg-surface/90 backdrop-blur border-t border-line">
           <div className="relative grid grid-cols-5 h-16 items-center">
             {MOBILE.slice(0, 2).map((n) => (
               <TabItem key={n.to} {...n} />

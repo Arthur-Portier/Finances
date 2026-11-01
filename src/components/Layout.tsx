@@ -30,6 +30,37 @@ export function Layout() {
     scroller.current?.scrollTo({ top: 0 })
   }, [loc.pathname])
 
+  // iOS (app installée) : quand le clavier s'ouvre, le système fait glisser la fenêtre
+  // pour montrer le champ actif, et ne la redescend pas toujours à la fermeture. On
+  // remet la fenêtre à zéro dès qu'aucun champ n'a le focus.
+  useEffect(() => {
+    const isEditing = () => {
+      const el = document.activeElement as HTMLElement | null
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
+    }
+    const reset = () => {
+      if (isEditing()) return
+      window.scrollTo(0, 0)
+      document.documentElement.scrollTop = 0
+      document.body.scrollTop = 0
+    }
+    const later = () => {
+      requestAnimationFrame(reset)
+      setTimeout(reset, 120)
+      setTimeout(reset, 400)
+    }
+    document.addEventListener('focusout', later)
+    window.visualViewport?.addEventListener('resize', later)
+    window.visualViewport?.addEventListener('scroll', later)
+    window.addEventListener('orientationchange', later)
+    return () => {
+      document.removeEventListener('focusout', later)
+      window.visualViewport?.removeEventListener('resize', later)
+      window.visualViewport?.removeEventListener('scroll', later)
+      window.removeEventListener('orientationchange', later)
+    }
+  }, [])
+
   const openAdd = useCallback((opts?: { categoryId?: string }) => setState({ open: true, categoryId: opts?.categoryId }), [])
   const openEdit = useCallback((tx: Transaction) => setState({ open: true, tx }), [])
   const close = useCallback(() => setState({ open: false }), [])

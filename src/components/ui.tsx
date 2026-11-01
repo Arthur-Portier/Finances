@@ -58,6 +58,8 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
+      ;(document.activeElement as HTMLElement | null)?.blur?.()
+      setTimeout(() => window.scrollTo(0, 0), 50)
     }
   }, [open, onClose])
   if (!open) return null

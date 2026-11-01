@@ -2,19 +2,24 @@ import { useMemo, useState } from 'react'
 import { format, getDaysInMonth } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { PiggyBank } from 'lucide-react'
-import { patch } from '../db/repo'
+import { patch, remove as removeRow, save as saveRow } from '../db/repo'
+import { Sheet } from '../components/ui'
+import { Pencil } from 'lucide-react'
 import { Card, CategoryBadge, Empty, PageHeader, Progress, StatTile } from '../components/ui'
-import { expenses, sum, useCategories, useRecentMonths } from '../lib/hooks'
-import { money, money0 } from '../lib/format'
+import { expenses, sum, useCategories, useGlobalBudget, useRecentMonths } from '../lib/hooks'
+import { cap, fmtMonthLong, money, money0 } from '../lib/format'
 import { slotVar } from '../lib/colors'
 
 export default function Budgets() {
-  const cats = useCategories().filter((c) => c.kind === 'expense')
+  const allCats = useCategories()
+  const cats = allCats.filter((c) => c.kind === 'expense')
   const txs = useRecentMonths(1)
   const now = new Date()
   const ym = format(now, 'yyyy-MM')
   const progress = now.getDate() / getDaysInMonth(now)
   const [editing, setEditing] = useState<string | null>(null)
+  const [editGlobal, setEditGlobal] = useState(false)
+  const global = useGlobalBudget(now, allCats)
   const [val, setVal] = useState('')
 
   const rows = useMemo(
@@ -26,8 +31,9 @@ export default function Budgets() {
     [cats, txs, ym],
   )
   const withBudget = rows.filter((r) => r.c.budget)
-  const totalBudget = withBudget.reduce((a, r) => a + (r.c.budget ?? 0), 0)
-  const totalSpent = withBudget.reduce((a, r) => a + r.spent, 0)
+  const totalBudget = global.value
+  const totalSpent = rows.reduce((a, r) => a + r.spent, 0)
+  const catsTotal = withBudget.reduce((a, r) => a + (r.c.budget ?? 0), 0)
   const over = withBudget.filter((r) => r.ratio > 1).length
 
   const save = async (id: string) => {
@@ -40,21 +46,23 @@ export default function Budgets() {
     <>
       <PageHeader title="Budgets" subtitle={`Nous sommes à ${Math.round(progress * 100)} % du mois.`} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatTile label="Budget total" value={money0(totalBudget)} />
+        <button className="text-left" onClick={() => setEditGlobal(true)} aria-label="Modifier le budget du mois">
+          <StatTile label="Budget du mois" value={money0(totalBudget)} hint={<span className="inline-flex items-center gap-1 text-accent"><Pencil size={11} /> {global.source === 'month' ? 'fixé pour ce mois' : global.source === 'default' ? 'valeur par défaut' : 'somme des espaces'}</span>} />
+        </button>
         <StatTile label="Dépensé" value={money0(totalSpent)} tone={totalSpent > totalBudget ? 'bad' : 'neutral'} />
         <StatTile label="Restant" value={money0(Math.max(0, totalBudget - totalSpent))} tone="accent" />
         <StatTile label="Dépassés" value={String(over)} tone={over ? 'bad' : 'good'} hint={over ? 'budget(s) dépassé(s)' : 'tout est sous contrôle'} />
       </div>
 
       <Card className="mt-4">
-        {withBudget.length > 0 && (
+        {totalBudget > 0 && (
           <div className="mb-5">
-            <div className="flex justify-between text-sm mb-1.5"><span className="font-medium">Global</span><span className="tabular text-ink-2">{money0(totalSpent)} / {money0(totalBudget)}</span></div>
+            <div className="flex justify-between text-sm mb-1.5"><span className="font-medium">Global · {cap(fmtMonthLong(now))}</span><span className="tabular text-ink-2">{money0(totalSpent)} / {money0(totalBudget)}</span></div>
             <div className="relative">
               <Progress value={totalBudget ? totalSpent / totalBudget : 0} color={totalSpent > totalBudget ? 'var(--bad)' : 'var(--accent)'} />
               <span className="absolute top-[-3px] h-3.5 w-0.5 bg-ink-3" style={{ left: `${progress * 100}%` }} title="Aujourd'hui" />
             </div>
-            <p className="mt-1.5 text-xs text-ink-3">Le trait gris indique où nous en sommes dans le mois.</p>
+            <p className="mt-1.5 text-xs text-ink-3">Le trait gris indique où nous en sommes dans le mois.{catsTotal > 0 && catsTotal !== totalBudget ? ` Les budgets par espace totalisent ${money0(catsTotal)}.` : ''}</p>
           </div>
         )}
         {rows.length === 0 && <Empty icon={PiggyBank} title="Aucun espace de dépense" />}
@@ -88,6 +96,49 @@ export default function Budgets() {
           ))}
         </ul>
       </Card>
+
+      <Sheet open={editGlobal} onClose={() => setEditGlobal(false)} title="Budget du mois">
+        <GlobalBudgetForm ym={global.ym} current={global.value} source={global.source} onDone={() => setEditGlobal(false)} />
+      </Sheet>
     </>
+  )
+}
+
+function GlobalBudgetForm({ ym, current, source, onDone }: { ym: string; current: number; source: 'month' | 'default' | 'categories'; onDone: () => void }) {
+  const [val, setVal] = useState(current ? String(current) : '')
+  const [scope, setScope] = useState<'month' | 'default'>('month')
+  const n = Number(val.replace(',', '.'))
+  const save = async () => {
+    if (!(n > 0)) return
+    await saveRow('budgets', { id: scope === 'month' ? ym : 'default', amount: Math.round(n * 100) / 100 })
+    onDone()
+  }
+  const reset = async () => {
+    if (source === 'month') await removeRow('budgets', ym)
+    else if (source === 'default') await removeRow('budgets', 'default')
+    onDone()
+  }
+  return (
+    <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); save() }}>
+      <p className="text-sm text-ink-2">Le montant que tu te donnes pour le mois. Il peut changer d'un mois à l'autre sans toucher aux budgets par espace.</p>
+      <div className="flex items-baseline justify-center gap-1">
+        <input autoFocus inputMode="decimal" value={val} onChange={(e) => setVal(e.target.value)} className="w-44 bg-transparent text-center text-4xl font-semibold tracking-tight outline-none placeholder:text-ink-3" placeholder="0" aria-label="Budget" />
+        <span className="text-2xl text-ink-3">€</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => setScope('month')} className={`rounded-2xl p-3 text-left text-sm border ${scope === 'month' ? 'border-accent bg-accent-soft' : 'border-line'}`}>
+          <div className="font-medium">Ce mois uniquement</div>
+          <div className="text-xs text-ink-3">Les autres mois gardent leur valeur.</div>
+        </button>
+        <button type="button" onClick={() => setScope('default')} className={`rounded-2xl p-3 text-left text-sm border ${scope === 'default' ? 'border-accent bg-accent-soft' : 'border-line'}`}>
+          <div className="font-medium">Chaque mois</div>
+          <div className="text-xs text-ink-3">Nouvelle valeur par défaut.</div>
+        </button>
+      </div>
+      <div className="flex gap-2">
+        {source !== 'categories' && <button type="button" className="btn btn-ghost" onClick={reset}>Réinitialiser</button>}
+        <button type="submit" className="btn btn-primary flex-1" disabled={!(n > 0)}>Enregistrer</button>
+      </div>
+    </form>
   )
 }

@@ -5,7 +5,7 @@
  * directement dans Dexie (voir lib/sync.ts) pour ne pas re-pousser.
  */
 import type { Table } from 'dexie'
-import { db, type SyncedTable, type SyncedTableName } from './db'
+import { db, SYNCED_TABLES, type SyncedTable, type SyncedTableName } from './db'
 
 let onLocalChange: (() => void) | null = null
 export const setLocalChangeListener = (fn: (() => void) | null) => {
@@ -61,9 +61,8 @@ export async function removeMany<T extends SyncedTableName>(table: T, ids: strin
 /** Met tout le contenu local dans la file (première connexion, fusion). */
 export async function enqueueAll() {
   const ts = Date.now()
-  const tables: SyncedTableName[] = ['categories', 'transactions', 'shoppingLists', 'shoppingItems', 'wardrobe', 'recurring']
-  await db.transaction('rw', [db.categories, db.transactions, db.shoppingLists, db.shoppingItems, db.wardrobe, db.recurring, db.outbox], async () => {
-    for (const t of tables) {
+  await db.transaction('rw', [...SYNCED_TABLES.map((t) => db[t]), db.outbox], async () => {
+    for (const t of SYNCED_TABLES) {
       const ids = await db[t].toCollection().primaryKeys()
       await db.outbox.bulkAdd(ids.map((id) => ({ table: t, id: String(id), op: 'put' as const, ts })))
     }

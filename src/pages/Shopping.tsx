@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Check, Plus, Trash2, ShoppingBasket, Receipt, ListPlus, Archive } from 'lucide-react'
+import { Check, Plus, Trash2, ShoppingBasket, Receipt, ListPlus, Archive, ExternalLink } from 'lucide-react'
 import { db, uid, type ShoppingItem } from '../db/db'
 import { patch, remove, removeMany, save } from '../db/repo'
 import { Card, Empty, PageHeader, Progress, Sheet } from '../components/ui'
 import { money, todayISO } from '../lib/format'
-import { useCategories } from '../lib/hooks'
+import { useCategories, useSetting } from '../lib/hooks'
+import { normalizeName, storeById } from '../lib/stores'
 
 export default function Shopping() {
   const lists = useLiveQuery(() => db.shoppingLists.orderBy('createdAt').filter((l) => !l.archived).toArray(), []) ?? []
@@ -16,6 +17,15 @@ export default function Shopping() {
   const coursesCat = cats.find((c) => c.module === 'shopping') ?? cats.find((c) => c.name === 'Courses')
   const [name, setName] = useState('')
   const [price, setPrice] = useState('')
+  const [storeId] = useSetting<string>('shopping.store', 'lidl')
+  const [memory, setMemory] = useSetting<Record<string, number>>('shopping.prices', {})
+  const store = storeById(storeId)
+  const remembered = memory[normalizeName(name)]
+  const rememberPrice = (n: string, p?: number) => {
+    const k = normalizeName(n)
+    if (!k || !p || p <= 0) return
+    if (memory[k] !== p) setMemory({ ...memory, [k]: p })
+  }
   const [newList, setNewList] = useState(false)
   const [listName, setListName] = useState('')
   const [checkout, setCheckout] = useState(false)
@@ -27,14 +37,22 @@ export default function Shopping() {
 
   const add = async () => {
     if (!name.trim() || !listId) return
-    const p = Number(price.replace(',', '.'))
-    await save('shoppingItems', { id: uid(), listId, name: name.trim(), qty: 1, price: p > 0 ? p : undefined, checked: false, createdAt: Date.now() })
+    const typed = Number(price.replace(',', '.'))
+    const p = typed > 0 ? typed : remembered
+    await save('shoppingItems', { id: uid(), listId, name: name.trim(), qty: 1, price: p && p > 0 ? p : undefined, checked: false, createdAt: Date.now() })
+    rememberPrice(name, p)
     setName('')
     setPrice('')
   }
   const toggle = (id: string, checked: boolean) => patch('shoppingItems', id, { checked: !checked })
   const removeItem = (id: string) => remove('shoppingItems', id)
   const setQty = (id: string, qty: number) => qty >= 1 && patch('shoppingItems', id, { qty })
+  const setPriceOf = async (it: ShoppingItem, raw: string) => {
+    const p = Number(raw.replace(',', '.'))
+    const price = p > 0 ? Math.round(p * 100) / 100 : undefined
+    if (price !== it.price) await patch('shoppingItems', it.id, { price })
+    rememberPrice(it.name, price)
+  }
   const clearChecked = () => removeMany('shoppingItems', done.map((i) => i.id))
 
   const createList = async () => {
@@ -79,32 +97,35 @@ export default function Shopping() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-3">
           <Card className="lg:col-span-2" title={lists.find((l) => l.id === listId)?.name} action={<button onClick={archiveList} className="text-xs text-ink-3 hover:text-ink flex items-center gap-1"><Archive size={14} /> Archiver</button>}>
-            <form className="flex gap-2 mb-3" onSubmit={(e) => { e.preventDefault(); add() }}>
-              <input className="field flex-1" placeholder="Ajouter un article…" value={name} onChange={(e) => setName(e.target.value)} />
-              <input className="field w-24" placeholder="€" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} aria-label="Prix estimé" />
+            <form className="flex gap-1.5 sm:gap-2 mb-3" onSubmit={(e) => { e.preventDefault(); add() }}>
+              <input className="field min-w-0 flex-1" placeholder="Ajouter un article…" value={name} onChange={(e) => setName(e.target.value)} />
+              <input className="field !w-16 sm:!w-24 shrink-0" placeholder={remembered ? remembered.toFixed(2) : '€'} inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} aria-label="Prix estimé" />
+              <a className={`btn btn-ghost !px-3 ${name.trim() ? '' : 'pointer-events-none opacity-40'}`} href={store.search(name.trim())} target="_blank" rel="noopener noreferrer" aria-label={`Chercher sur ${store.name}`} title={`Chercher « ${name.trim()} » sur ${store.name}`}><ExternalLink size={18} /></a>
               <button type="submit" className="btn btn-primary !px-3" aria-label="Ajouter"><Plus size={18} /></button>
             </form>
-            {items.length === 0 && <p className="text-sm text-ink-3 py-6 text-center">La liste est vide. Ajoute un article ci-dessus.</p>}
+            {remembered && !price && name.trim() && <p className="-mt-1 mb-2 text-xs text-ink-3">Dernier prix connu pour « {name.trim()} » : {money(remembered)}. Laisse vide pour le reprendre.</p>}
+            {items.length === 0 && <p className="text-sm text-ink-3 py-6 text-center">La liste est vide. Ajoute un article ci-dessus, puis ouvre-le chez {store.name} avec la flèche pour vérifier le prix du jour.</p>}
             <ul className="divide-y divide-line">
               {[...items].sort((a, b) => Number(a.checked) - Number(b.checked)).map((it) => (
-                <li key={it.id} className="flex items-center gap-3 py-2.5">
+                <li key={it.id} className="flex items-center gap-2 sm:gap-3 py-2.5">
                   <button onClick={() => toggle(it.id, it.checked)} aria-label={it.checked ? 'Décocher' : 'Cocher'} className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${it.checked ? 'bg-accent border-accent text-white' : 'border-axis'}`}>
                     {it.checked && <Check size={14} strokeWidth={3} />}
                   </button>
-                  <span className={`flex-1 truncate ${it.checked ? 'line-through text-ink-3' : ''}`}>{it.name}</span>
-                  <div className="flex items-center gap-1 text-sm">
-                    <button className="h-7 w-7 rounded-lg bg-surface-2" onClick={() => setQty(it.id, it.qty - 1)} aria-label="Moins">−</button>
+                  <span className={`min-w-0 flex-1 truncate ${it.checked ? 'line-through text-ink-3' : ''}`}>{it.name}</span>
+                  <a href={store.search(it.name)} target="_blank" rel="noopener noreferrer" className="text-ink-3 hover:text-accent" aria-label={`Voir « ${it.name} » chez ${store.name}`} title={`Voir chez ${store.name}`}><ExternalLink size={15} /></a>
+                  <div className="flex shrink-0 items-center gap-0.5 sm:gap-1 text-sm">
+                    <button className="h-7 w-6 sm:w-7 rounded-lg bg-surface-2" onClick={() => setQty(it.id, it.qty - 1)} aria-label="Moins">−</button>
                     <span className="w-5 text-center tabular">{it.qty}</span>
-                    <button className="h-7 w-7 rounded-lg bg-surface-2" onClick={() => setQty(it.id, it.qty + 1)} aria-label="Plus">+</button>
+                    <button className="h-7 w-6 sm:w-7 rounded-lg bg-surface-2" onClick={() => setQty(it.id, it.qty + 1)} aria-label="Plus">+</button>
                   </div>
-                  <span className="w-16 text-right text-sm tabular text-ink-2">{it.price ? money(it.price * it.qty) : '—'}</span>
+                  <input className="field !w-16 sm:!w-20 shrink-0 !py-1 !px-1.5 text-right text-sm tabular" inputMode="decimal" defaultValue={it.price ? String(it.price) : ''} placeholder="€" key={`${it.id}-${it.price ?? ''}`} onBlur={(e) => setPriceOf(it, e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()} aria-label={`Prix de ${it.name}`} />
                   <button onClick={() => removeItem(it.id)} className="text-ink-3 hover:text-bad" aria-label="Supprimer"><Trash2 size={16} /></button>
                 </li>
               ))}
             </ul>
           </Card>
           <div className="space-y-4">
-            <Card title="Récapitulatif">
+            <Card title="Récapitulatif" action={<span className="text-xs text-ink-3">Enseigne : {store.name}</span>}>
               <div className="text-3xl font-semibold tabular tracking-tight">{money(est)}</div>
               <div className="text-xs text-ink-3 mt-1">estimation · {items.length} article{items.length > 1 ? 's' : ''}</div>
               <div className="mt-4">

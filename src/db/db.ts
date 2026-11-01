@@ -72,6 +72,12 @@ export interface Recurring extends Synced {
   lastApplied?: string    // yyyy-MM
 }
 
+/** Budget global mensuel. id = 'yyyy-MM' pour un mois précis, 'default' pour la valeur par défaut. */
+export interface Budget extends Synced {
+  id: string
+  amount: number
+}
+
 export interface Setting {
   key: string
   value: unknown
@@ -85,14 +91,15 @@ export interface OutboxEntry {
   ts: number
 }
 
-export type SyncedTableName = 'categories' | 'transactions' | 'shoppingLists' | 'shoppingItems' | 'wardrobe' | 'recurring'
+export type SyncedTableName = 'categories' | 'transactions' | 'shoppingLists' | 'shoppingItems' | 'wardrobe' | 'recurring' | 'budgets'
 export type SyncedTable<T extends SyncedTableName> = T extends 'categories' ? Category
   : T extends 'transactions' ? Transaction
   : T extends 'shoppingLists' ? ShoppingList
   : T extends 'shoppingItems' ? ShoppingItem
   : T extends 'wardrobe' ? WardrobeItem
-  : Recurring
-export const SYNCED_TABLES: SyncedTableName[] = ['categories', 'transactions', 'shoppingLists', 'shoppingItems', 'wardrobe', 'recurring']
+  : T extends 'recurring' ? Recurring
+  : Budget
+export const SYNCED_TABLES: SyncedTableName[] = ['categories', 'transactions', 'shoppingLists', 'shoppingItems', 'wardrobe', 'recurring', 'budgets']
 
 export const db = new Dexie('finances') as Dexie & {
   categories: EntityTable<Category, 'id'>
@@ -101,6 +108,7 @@ export const db = new Dexie('finances') as Dexie & {
   shoppingItems: EntityTable<ShoppingItem, 'id'>
   wardrobe: EntityTable<WardrobeItem, 'id'>
   recurring: EntityTable<Recurring, 'id'>
+  budgets: EntityTable<Budget, 'id'>
   settings: EntityTable<Setting, 'key'>
   outbox: EntityTable<OutboxEntry, 'seq'>
 }
@@ -122,6 +130,18 @@ db.version(2).stores({
   shoppingItems: 'id, listId, checked',
   wardrobe: 'id, date, type',
   recurring: 'id, active',
+  settings: 'key',
+  outbox: '++seq, [table+id]',
+})
+
+db.version(3).stores({
+  categories: 'id, order, kind',
+  transactions: 'id, date, categoryId, type, [categoryId+date]',
+  shoppingLists: 'id, createdAt',
+  shoppingItems: 'id, listId, checked',
+  wardrobe: 'id, date, type',
+  recurring: 'id, active',
+  budgets: 'id',
   settings: 'key',
   outbox: '++seq, [table+id]',
 })

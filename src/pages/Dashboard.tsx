@@ -6,7 +6,7 @@ import { useTxSheet } from '../components/Layout'
 import { Card, Empty, PageHeader, Progress, StatTile } from '../components/ui'
 import { CumulativeLines, MonthlyBars, RankedBars } from '../components/charts'
 import { TransactionRow } from '../components/TransactionRow'
-import { categoryTotals, expenses, incomes, sum, useCategoryMap, useRecentMonths } from '../lib/hooks'
+import { categoryTotals, expenses, incomes, sum, useCategories, useCategoryMap, useGlobalBudget, useRecentMonths } from '../lib/hooks'
 import { cap, fmtMonth, fmtMonthLong, money, money0 } from '../lib/format'
 import { slotVar } from '../lib/colors'
 import { seedDemo } from '../db/seed'
@@ -14,8 +14,10 @@ import { seedDemo } from '../db/seed'
 export default function Dashboard() {
   const txs = useRecentMonths(6)
   const cats = useCategoryMap()
+  const allCats = useCategories()
   const { openEdit } = useTxSheet()
   const now = new Date()
+  const globalBudget = useGlobalBudget(now, allCats)
   const ym = format(now, 'yyyy-MM')
   const prevYm = format(subMonths(now, 1), 'yyyy-MM')
 
@@ -25,7 +27,7 @@ export default function Dashboard() {
   const earned = sum(incomes(thisMonth))
   const spentPrev = sum(expenses(lastMonth))
   const balance = earned - spent
-  const budgetTotal = [...cats.values()].filter((c) => c.kind === 'expense').reduce((a, c) => a + (c.budget ?? 0), 0)
+  const budgetTotal = globalBudget.value
 
   const monthly = useMemo(() => {
     return Array.from({ length: 6 }, (_, i) => {
@@ -106,7 +108,7 @@ export default function Dashboard() {
         <StatTile label="Dépensé ce mois" value={money0(spent)} delta={spentPrev > 0 ? { value: (spent - spentPrev) / spentPrev, good: spent <= spentPrev, label: 'vs mois dernier' } : undefined} />
         <StatTile label="Revenus" value={money0(earned)} tone="good" />
         <StatTile label="Solde du mois" value={money0(balance)} tone={balance >= 0 ? 'accent' : 'bad'} hint={projected ? `Projection : ${money0(projected)} dépensés` : undefined} />
-        <StatTile label="Budget restant" value={money0(Math.max(0, budgetTotal - spent))} hint={`sur ${money0(budgetTotal)} prévus`} />
+        <Link to="/budgets" className="text-left"><StatTile label="Budget restant" value={money0(Math.max(0, budgetTotal - spent))} tone={spent > budgetTotal && budgetTotal > 0 ? 'bad' : 'neutral'} hint={budgetTotal > 0 ? `sur ${money0(budgetTotal)} ce mois` : 'Définir un budget'} /></Link>
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-5">

@@ -55,6 +55,21 @@ export function categoryTotals(txs: Transaction[], cats: Map<string, Category>) 
     .sort((a, b) => b.total - a.total)
 }
 
+/**
+ * Budget global du mois : valeur fixée pour ce mois, sinon valeur par défaut,
+ * sinon somme des budgets par espace.
+ */
+export function useGlobalBudget(month: Date, categories: Category[]) {
+  const ym = format(month, 'yyyy-MM')
+  const rows = useLiveQuery(() => db.budgets.bulkGet([ym, 'default']), [ym])
+  const monthly = rows?.[0]?.amount
+  const def = rows?.[1]?.amount
+  const fromCats = categories.filter((c) => c.kind === 'expense').reduce((a, c) => a + (c.budget ?? 0), 0)
+  const value = monthly ?? def ?? fromCats
+  const source: 'month' | 'default' | 'categories' = monthly != null ? 'month' : def != null ? 'default' : 'categories'
+  return { value, source, ym }
+}
+
 export type Theme = 'light' | 'dark' | 'system'
 export function useTheme(): [Theme, (t: Theme) => void] {
   const [theme, setTheme] = useState<Theme>(() => {

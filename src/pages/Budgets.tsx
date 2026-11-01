@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { format, getDaysInMonth } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { PiggyBank } from 'lucide-react'
-import { db } from '../db/db'
+import { patch } from '../db/repo'
 import { Card, CategoryBadge, Empty, PageHeader, Progress, StatTile } from '../components/ui'
 import { expenses, sum, useCategories, useRecentMonths } from '../lib/hooks'
 import { money, money0 } from '../lib/format'
@@ -32,7 +32,7 @@ export default function Budgets() {
 
   const save = async (id: string) => {
     const n = Number(val.replace(',', '.'))
-    await db.categories.update(id, { budget: n > 0 ? n : undefined })
+    await patch('categories', id, { budget: n > 0 ? n : undefined })
     setEditing(null)
   }
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { db, uid, type Category, type TxType } from '../db/db'
+import { patch, remove as removeRow, removeMany, save as saveRow } from '../db/repo'
 import { ICONS } from '../lib/icons'
 import { SLOTS, slotVar } from '../lib/colors'
 import { Segmented } from './ui'
@@ -27,7 +28,7 @@ export function CategoryForm({ initial, onDone }: { initial?: Category; onDone: 
       subs: subs.split(',').map((s) => s.trim()).filter(Boolean),
       order: initial?.order ?? count + 1,
     }
-    await db.categories.put(cat)
+    await saveRow('categories', cat)
     onDone()
   }
 
@@ -36,9 +37,10 @@ export function CategoryForm({ initial, onDone }: { initial?: Category; onDone: 
     const n = await db.transactions.where('categoryId').equals(initial.id).count()
     if (!confirm(`Supprimer « ${initial.name} » ? ${n ? `${n} transaction(s) seront déplacées vers « Divers ».` : ''}`)) return
     const divers = (await db.categories.filter((c) => c.name === 'Divers').first()) ?? null
-    if (n && divers) await db.transactions.where('categoryId').equals(initial.id).modify({ categoryId: divers.id })
-    else if (n) await db.transactions.where('categoryId').equals(initial.id).delete()
-    await db.categories.delete(initial.id)
+    const ids = (await db.transactions.where('categoryId').equals(initial.id).primaryKeys()) as string[]
+    if (divers) for (const id of ids) await patch('transactions', id, { categoryId: divers.id })
+    else await removeMany('transactions', ids)
+    await removeRow('categories', initial.id)
     onDone()
   }
 

@@ -1,4 +1,5 @@
-import { db } from '../db/db'
+import { db, SYNCED_TABLES } from '../db/db'
+import { removeMany, saveMany } from '../db/repo'
 
 export async function exportJSON() {
   const data = {
@@ -25,16 +26,20 @@ export async function importJSON(file: File) {
   const text = await file.text()
   const data = JSON.parse(text)
   if (!data || data.version !== 1 || !Array.isArray(data.transactions)) throw new Error('Fichier invalide')
+  for (const t of SYNCED_TABLES) {
+    const ids = (await db[t].toCollection().primaryKeys()) as string[]
+    await removeMany(t, ids)
+  }
   await db.transaction('rw', [db.categories, db.transactions, db.shoppingLists, db.shoppingItems, db.wardrobe, db.recurring, db.settings], async () => {
     await Promise.all([db.categories.clear(), db.transactions.clear(), db.shoppingLists.clear(), db.shoppingItems.clear(), db.wardrobe.clear(), db.recurring.clear(), db.settings.clear()])
-    await db.categories.bulkAdd(data.categories ?? [])
-    await db.transactions.bulkAdd(data.transactions ?? [])
-    await db.shoppingLists.bulkAdd(data.shoppingLists ?? [])
-    await db.shoppingItems.bulkAdd(data.shoppingItems ?? [])
-    await db.wardrobe.bulkAdd(data.wardrobe ?? [])
-    await db.recurring.bulkAdd(data.recurring ?? [])
     await db.settings.bulkAdd(data.settings ?? [])
   })
+  await saveMany('categories', data.categories ?? [])
+  await saveMany('transactions', data.transactions ?? [])
+  await saveMany('shoppingLists', data.shoppingLists ?? [])
+  await saveMany('shoppingItems', data.shoppingItems ?? [])
+  await saveMany('wardrobe', data.wardrobe ?? [])
+  await saveMany('recurring', data.recurring ?? [])
 }
 
 export async function exportCSV() {
@@ -54,7 +59,12 @@ export async function exportCSV() {
   URL.revokeObjectURL(url)
 }
 
+/** Efface tout : localement, et dans le cloud si connecté (via des suppressions synchronisées). */
 export async function wipeAll() {
+  for (const t of SYNCED_TABLES) {
+    const ids = (await db[t].toCollection().primaryKeys()) as string[]
+    await removeMany(t, ids)
+  }
   await db.transaction('rw', [db.categories, db.transactions, db.shoppingLists, db.shoppingItems, db.wardrobe, db.recurring, db.settings], async () => {
     await Promise.all([db.categories.clear(), db.transactions.clear(), db.shoppingLists.clear(), db.shoppingItems.clear(), db.wardrobe.clear(), db.recurring.clear(), db.settings.clear()])
   })

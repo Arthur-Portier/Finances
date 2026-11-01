@@ -1,5 +1,9 @@
 # Finances
 
+> **📱 Ouvrir l'application : [arthur-portier.github.io/Finances](https://arthur-portier.github.io/Finances/)**
+>
+> Puis « Sur l'écran d'accueil » (Safari) ou « Installer l'application » (Chrome) pour l'avoir comme une vraie app.
+
 Application desktop et mobile pour gérer mes finances au quotidien : dépenses, revenus, budgets, listes de courses, garde-robe, tennis et tous les autres postes de dépense.
 
 C'est une **Progressive Web App** (PWA) : une seule base de code, installable sur iPhone, Android, Mac, Windows et Linux depuis le navigateur. Elle fonctionne hors ligne et les données restent sur l'appareil (IndexedDB).
@@ -45,16 +49,34 @@ Le dépôt contient un workflow GitHub Actions qui publie l'application sur GitH
 
 Les données sont locales à chaque appareil. Pour les transférer : Réglages → Exporter (JSON) sur l'un, Importer sur l'autre.
 
+## Synchronisation entre appareils (Supabase)
+
+L'app reste utilisable hors ligne : les données vivent dans IndexedDB et une file de modifications est poussée vers Supabase dès que le réseau est là. Les autres appareils connectés au même compte reçoivent les changements en direct.
+
+Mise en place, une seule fois :
+
+1. Créer un projet gratuit sur [supabase.com](https://supabase.com).
+2. **SQL Editor** → coller le contenu de `supabase/schema.sql` → Run.
+3. **Authentication → Sign In / Providers → Email** : laisser activé. Pour éviter l'étape de confirmation par e-mail, désactiver « Confirm email ».
+4. Récupérer dans **Project Settings → API** l'URL du projet et la clé publique `anon`, puis soit :
+   - les renseigner dans l'app (Réglages → Synchronisation), appareil par appareil ;
+   - soit les mettre dans `src/lib/syncConfig.ts` (ou dans les variables de dépôt GitHub `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`) pour qu'elles soient intégrées au build. La clé `anon` est publique par conception ; la sécurité repose sur les règles RLS du schéma.
+5. Dans l'app : Réglages → Synchronisation → créer un compte, puis se connecter avec le même compte sur chaque appareil.
+
+Règles de fusion : dernier qui écrit gagne, enregistrement par enregistrement ; les suppressions sont propagées. Un appareil neuf qui se connecte reçoit les données du cloud ; un appareil qui a déjà des données les envoie et fusionne.
+
 ## Stack
 
-Vite · React 19 · TypeScript · Tailwind CSS 4 · Recharts · Dexie (IndexedDB) · vite-plugin-pwa.
+Vite · React 19 · TypeScript · Tailwind CSS 4 · Recharts · Dexie (IndexedDB) · vite-plugin-pwa · Supabase (synchronisation optionnelle).
 
 ## Structure
 
 ```
 src/
   db/          schéma Dexie, catégories par défaut, données d'exemple
-  lib/         hooks de données, formats, couleurs, récurrents, sauvegarde
+  lib/         hooks de données, formats, couleurs, récurrents, sauvegarde, synchronisation
+  db/repo.ts   couche d'écriture : toute modification alimente la file de synchro
+supabase/      schéma SQL à exécuter dans le projet Supabase
   components/  coque (navigation), composants UI, graphiques, formulaires
   pages/       Tableau de bord, Transactions, Espaces, Courses, Garde-robe, Budgets, Abonnements, Réglages
 ```

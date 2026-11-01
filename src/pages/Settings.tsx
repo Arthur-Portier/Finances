@@ -7,6 +7,7 @@ import { useTheme, type Theme } from '../lib/hooks'
 import { exportCSV, exportJSON, importJSON, wipeAll } from '../lib/backup'
 import { seedDemo } from '../db/seed'
 import { ensureDefaults } from '../db/defaults'
+import { SyncCard } from '../components/SyncCard'
 
 export default function SettingsPage() {
   const [theme, setTheme] = useTheme()
@@ -35,6 +36,7 @@ export default function SettingsPage() {
     <>
       <PageHeader title="Réglages" />
       <div className="grid gap-4 lg:grid-cols-2">
+        <div className="lg:col-span-2"><SyncCard /></div>
         <Card title="Apparence">
           <Segmented<Theme> value={theme} onChange={setTheme} options={[{ value: 'system', label: 'Auto' }, { value: 'light', label: 'Clair' }, { value: 'dark', label: 'Sombre' }]} />
           <div className="mt-3 flex items-center gap-2 text-xs text-ink-3">
@@ -63,7 +65,7 @@ export default function SettingsPage() {
             <button className="btn btn-ghost" onClick={() => fileRef.current?.click()}><Upload size={16} /> Importer</button>
             <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(e) => onImport(e.target.files?.[0])} />
           </div>
-          <p className="mt-3 text-xs text-ink-3">Pour synchroniser deux appareils : exporte sur l'un, importe sur l'autre.</p>
+          <p className="mt-3 text-xs text-ink-3">Sauvegarde manuelle complète. Avec la synchronisation activée, ce n'est plus nécessaire au quotidien.</p>
         </Card>
 
         <Card title="Données">

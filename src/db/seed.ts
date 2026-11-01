@@ -1,5 +1,6 @@
 import { addDays, format, subMonths, startOfMonth } from 'date-fns'
 import { db, uid, type Transaction } from './db'
+import { saveMany } from './repo'
 
 const rnd = (min: number, max: number) => Math.round((min + Math.random() * (max - min)) * 100) / 100
 const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)]
@@ -42,7 +43,7 @@ export async function seedDemo() {
     push(addDays(start, 14), 'Vêtements', rnd(25, 90), pick(['Haut', 'Bas', 'Chaussures']))
     if (m === 1) push(addDays(start, 22), 'Vêtements', 129, 'Veste', 'Veste mi-saison')
   }
-  await db.transactions.bulkAdd(txs)
+  await saveMany('transactions', txs)
 
   const vet = byName['Vêtements']
   if (vet) {
@@ -53,19 +54,19 @@ export async function seedDemo() {
       { name: 'Veste mi-saison', brand: 'COS', type: 'Veste', price: 129, wears: 9 },
       { name: 'Tenue tennis', brand: 'Nike', type: 'Sport', price: 65, wears: 21 },
     ]
-    await db.wardrobe.bulkAdd(items.map((it, i) => ({ ...it, id: uid(), date: format(subMonths(today, 5 - i), 'yyyy-MM-dd') })))
+    await saveMany('wardrobe', items.map((it, i) => ({ ...it, id: uid(), date: format(subMonths(today, 5 - i), 'yyyy-MM-dd') })))
   }
 
   const list = await db.shoppingLists.orderBy('createdAt').first()
   if (list) {
     const items = ['Lait', 'Œufs', 'Pain complet', 'Pommes', 'Pâtes', 'Yaourts', 'Poulet', 'Café']
-    await db.shoppingItems.bulkAdd(items.map((name, i) => ({ id: uid(), listId: list.id, name, qty: 1, price: rnd(1.2, 8), checked: i < 2, createdAt: Date.now() + i })))
+    await saveMany('shoppingItems', items.map((name, i) => ({ id: uid(), listId: list.id, name, qty: 1, price: rnd(1.2, 8), checked: i < 2, createdAt: Date.now() + i })))
   }
 
   const abo = byName['Abonnements']
   const log = byName['Logement']
   const sal = byName['Salaire']
-  await db.recurring.bulkAdd([
+  await saveMany('recurring', [
     { id: uid(), name: 'Loyer', amount: 820, type: 'expense', categoryId: log.id, sub: 'Loyer', day: 2, active: true, lastApplied: format(today, 'yyyy-MM') },
     { id: uid(), name: 'Netflix', amount: 17.99, type: 'expense', categoryId: abo.id, sub: 'Streaming', day: 3, active: true, lastApplied: format(today, 'yyyy-MM') },
     { id: uid(), name: 'Spotify', amount: 9.99, type: 'expense', categoryId: abo.id, sub: 'Streaming', day: 10, active: true, lastApplied: format(today, 'yyyy-MM') },

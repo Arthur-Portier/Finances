@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { ensureDefaults } from './db/defaults'
 import { applyRecurring } from './lib/recurring'
+import { startSync } from './lib/sync'
 import Dashboard from './pages/Dashboard'
 import Transactions from './pages/Transactions'
 import Spaces from './pages/Spaces'
@@ -18,6 +19,7 @@ export default function App() {
   useEffect(() => {
     ensureDefaults()
       .then(applyRecurring)
+      .then(startSync)
       .finally(() => setReady(true))
   }, [])
   if (!ready) return null

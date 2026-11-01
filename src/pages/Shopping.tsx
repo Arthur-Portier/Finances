@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Check, Plus, Trash2, ShoppingBasket, Receipt, ListPlus, Archive } from 'lucide-react'
 import { db, uid, type ShoppingItem } from '../db/db'
+import { patch, remove, removeMany, save } from '../db/repo'
 import { Card, Empty, PageHeader, Progress, Sheet } from '../components/ui'
 import { money, todayISO } from '../lib/format'
 import { useCategories } from '../lib/hooks'
@@ -27,26 +28,26 @@ export default function Shopping() {
   const add = async () => {
     if (!name.trim() || !listId) return
     const p = Number(price.replace(',', '.'))
-    await db.shoppingItems.add({ id: uid(), listId, name: name.trim(), qty: 1, price: p > 0 ? p : undefined, checked: false, createdAt: Date.now() })
+    await save('shoppingItems', { id: uid(), listId, name: name.trim(), qty: 1, price: p > 0 ? p : undefined, checked: false, createdAt: Date.now() })
     setName('')
     setPrice('')
   }
-  const toggle = (id: string, checked: boolean) => db.shoppingItems.update(id, { checked: !checked })
-  const remove = (id: string) => db.shoppingItems.delete(id)
-  const setQty = (id: string, qty: number) => qty >= 1 && db.shoppingItems.update(id, { qty })
-  const clearChecked = () => db.shoppingItems.where('listId').equals(listId!).filter((i) => i.checked).delete()
+  const toggle = (id: string, checked: boolean) => patch('shoppingItems', id, { checked: !checked })
+  const removeItem = (id: string) => remove('shoppingItems', id)
+  const setQty = (id: string, qty: number) => qty >= 1 && patch('shoppingItems', id, { qty })
+  const clearChecked = () => removeMany('shoppingItems', done.map((i) => i.id))
 
   const createList = async () => {
     if (!listName.trim()) return
     const id = uid()
-    await db.shoppingLists.add({ id, name: listName.trim(), createdAt: Date.now() })
+    await save('shoppingLists', { id, name: listName.trim(), createdAt: Date.now() })
     setActive(id)
     setListName('')
     setNewList(false)
   }
   const archiveList = async () => {
     if (!listId || !confirm('Archiver cette liste ?')) return
-    await db.shoppingLists.update(listId, { archived: true })
+    await patch('shoppingLists', listId, { archived: true })
     setActive(null)
   }
 
@@ -55,7 +56,7 @@ export default function Shopping() {
     const amount = Number(total.replace(',', '.')) || doneTotal
     if (amount <= 0) return
     const list = lists.find((l) => l.id === listId)
-    await db.transactions.add({ id: uid(), date: todayISO(), amount: Math.round(amount * 100) / 100, type: 'expense', categoryId: coursesCat.id, sub: 'Supermarché', note: `${list?.name ?? 'Courses'} · ${done.length} article${done.length > 1 ? 's' : ''}`, createdAt: Date.now() })
+    await save('transactions', { id: uid(), date: todayISO(), amount: Math.round(amount * 100) / 100, type: 'expense', categoryId: coursesCat.id, sub: 'Supermarché', note: `${list?.name ?? 'Courses'} · ${done.length} article${done.length > 1 ? 's' : ''}`, createdAt: Date.now() })
     await clearChecked()
     setCheckout(false)
     setTotal('')
@@ -97,7 +98,7 @@ export default function Shopping() {
                     <button className="h-7 w-7 rounded-lg bg-surface-2" onClick={() => setQty(it.id, it.qty + 1)} aria-label="Plus">+</button>
                   </div>
                   <span className="w-16 text-right text-sm tabular text-ink-2">{it.price ? money(it.price * it.qty) : '—'}</span>
-                  <button onClick={() => remove(it.id)} className="text-ink-3 hover:text-bad" aria-label="Supprimer"><Trash2 size={16} /></button>
+                  <button onClick={() => removeItem(it.id)} className="text-ink-3 hover:text-bad" aria-label="Supprimer"><Trash2 size={16} /></button>
                 </li>
               ))}
             </ul>

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Shirt, Trash2 } from 'lucide-react'
 import { db, uid, type WardrobeItem } from '../db/db'
+import { patch, save as saveRow } from '../db/repo'
 import { Card, Empty, PageHeader, Segmented, Sheet, StatTile } from '../components/ui'
 import { RankedBars } from '../components/charts'
 import { groupBy, useCategories } from '../lib/hooks'
@@ -34,10 +35,10 @@ export default function Wardrobe() {
     return list.sort((a, b) => a.price / Math.max(1, a.wears) - b.price / Math.max(1, b.wears))
   }, [items, sort, typeFilter])
 
-  const wear = (it: WardrobeItem) => db.wardrobe.update(it.id, { wears: it.wears + 1 })
+  const wear = (it: WardrobeItem) => patch('wardrobe', it.id, { wears: it.wears + 1 })
   const remove = async (it: WardrobeItem) => {
     if (!confirm(`Retirer « ${it.name} » de la garde-robe ?`)) return
-    await db.wardrobe.update(it.id, { archived: true })
+    await patch('wardrobe', it.id, { archived: true })
   }
 
   return (
@@ -110,9 +111,9 @@ function WardrobeForm({ onDone, categoryId }: { onDone: () => void; categoryId?:
     let transactionId: string | undefined
     if (addTx && categoryId) {
       transactionId = uid()
-      await db.transactions.add({ id: transactionId, date, amount: p, type: 'expense', categoryId, sub: type, note: [brand.trim(), name.trim()].filter(Boolean).join(' '), createdAt: Date.now() })
+      await saveRow('transactions', { id: transactionId, date, amount: p, type: 'expense', categoryId, sub: type, note: [brand.trim(), name.trim()].filter(Boolean).join(' '), createdAt: Date.now() })
     }
-    await db.wardrobe.add({ id: uid(), name: name.trim(), brand: brand.trim() || undefined, type, price: p, date, wears: 0, transactionId })
+    await saveRow('wardrobe', { id: uid(), name: name.trim(), brand: brand.trim() || undefined, type, price: p, date, wears: 0, transactionId })
     onDone()
   }
 

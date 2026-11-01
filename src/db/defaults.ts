@@ -1,4 +1,5 @@
 import { db, uid, type Category } from './db'
+import { save, saveMany } from './repo'
 
 export const DEFAULT_CATEGORIES: Omit<Category, 'id'>[] = [
   { name: 'Courses', icon: 'ShoppingBasket', slot: 3, kind: 'expense', budget: 350, module: 'shopping', subs: ['Supermarché', 'Marché', 'Boulangerie', 'Drive'], order: 1 },
@@ -18,6 +19,6 @@ export const DEFAULT_CATEGORIES: Omit<Category, 'id'>[] = [
 export async function ensureDefaults() {
   const count = await db.categories.count()
   if (count > 0) return
-  await db.categories.bulkAdd(DEFAULT_CATEGORIES.map((c) => ({ ...c, id: uid() })))
-  await db.shoppingLists.add({ id: uid(), name: 'Courses de la semaine', createdAt: Date.now() })
+  await saveMany('categories', DEFAULT_CATEGORIES.map((c) => ({ ...c, id: uid() })))
+  await save('shoppingLists', { id: uid(), name: 'Courses de la semaine', createdAt: Date.now() })
 }

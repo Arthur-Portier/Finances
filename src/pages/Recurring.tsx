@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Repeat, Trash2 } from 'lucide-react'
 import { db, uid, type Recurring as Rec, type TxType } from '../db/db'
+import { remove as removeRow, save as saveRow } from '../db/repo'
 import { Card, CategoryBadge, Empty, PageHeader, Segmented, Sheet, StatTile } from '../components/ui'
 import { useCategories, useCategoryMap } from '../lib/hooks'
 import { money, money0 } from '../lib/format'
@@ -71,12 +72,12 @@ function RecForm({ initial, onDone }: { initial?: Rec; onDone: () => void }) {
 
   const save = async () => {
     if (!valid) return
-    await db.recurring.put({ id: initial?.id ?? uid(), name: name.trim(), amount: a, type, categoryId: catId, sub: sub.trim() || undefined, day: d, active, lastApplied: initial?.lastApplied })
+    await saveRow('recurring', { id: initial?.id ?? uid(), name: name.trim(), amount: a, type, categoryId: catId, sub: sub.trim() || undefined, day: d, active, lastApplied: initial?.lastApplied })
     onDone()
   }
   const remove = async () => {
     if (!initial || !confirm('Supprimer ce récurrent ? Les transactions déjà créées sont conservées.')) return
-    await db.recurring.delete(initial.id)
+    await removeRow('recurring', initial.id)
     onDone()
   }
 
